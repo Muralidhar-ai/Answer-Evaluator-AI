@@ -67,6 +67,47 @@ def parse_json_from_response(text):
                 pass
         raise ValueError(f"Could not parse valid JSON from the model response. Raw response: {text}")
 
+def normalize_extracted_questions(parsed_json):
+    """
+    Ensures that the output of extract_questions_or_rubric is always a list of dictionaries.
+    """
+    items = []
+    if isinstance(parsed_json, list):
+        items = parsed_json
+    elif isinstance(parsed_json, dict):
+        # Look for a list inside the values (e.g. {"questions": [...]})
+        list_found = False
+        for val in parsed_json.values():
+            if isinstance(val, list):
+                items = val
+                list_found = True
+                break
+        if not list_found:
+            items = [parsed_json]
+    else:
+        # Fallback for unexpected type
+        items = [parsed_json]
+
+    normalized = []
+    for item in items:
+        if isinstance(item, dict):
+            # Ensure required keys exist
+            normalized.append({
+                "question_no": str(item.get("question_no", "")),
+                "question_text": str(item.get("question_text", "") or item.get("question", "")),
+                "max_marks": item.get("max_marks"),
+                "rubric_points": item.get("rubric_points") if isinstance(item.get("rubric_points"), list) else ([item.get("rubric_points")] if item.get("rubric_points") else [])
+            })
+        elif isinstance(item, str):
+            # If the item is a string, wrap it gracefully
+            normalized.append({
+                "question_no": "",
+                "question_text": item,
+                "max_marks": None,
+                "rubric_points": []
+            })
+    return normalized
+
 def extract_questions_or_rubric(file_bytes=None, filename=None, paste_text=None, is_rubric=False):
     """
     Extracts structure of questions (or rubrics) using Groq.
@@ -137,7 +178,8 @@ def extract_questions_or_rubric(file_bytes=None, filename=None, paste_text=None,
             response_format={"type": "json_object"} if "vision" not in model.lower() and "maverick" not in model.lower() else None
         )
         response_text = response.choices[0].message.content
-        return parse_json_from_response(response_text)
+        parsed = parse_json_from_response(response_text)
+        return normalize_extracted_questions(parsed)
     except Exception as e:
         raise ValueError(f"Groq Extraction API failed: {str(e)}")
 

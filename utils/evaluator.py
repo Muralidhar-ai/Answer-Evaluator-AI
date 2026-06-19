@@ -8,6 +8,43 @@ def get_groq_client():
         raise ValueError("GROQ_API_KEY is not set. Please add it to your environment or .env file.")
     return Groq(api_key=Config.GROQ_API_KEY)
 
+def normalize_aligned_data(aligned_data):
+    """
+    Ensures that aligned data is always parsed into a list of dictionaries.
+    """
+    items = []
+    if isinstance(aligned_data, list):
+        items = aligned_data
+    elif isinstance(aligned_data, dict):
+        list_found = False
+        for val in aligned_data.values():
+            if isinstance(val, list):
+                items = val
+                list_found = True
+                break
+        if not list_found:
+            items = [aligned_data]
+    else:
+        items = []
+
+    normalized = []
+    for item in items:
+        if isinstance(item, dict):
+            normalized.append({
+                "question_no": str(item.get("question_no", "")),
+                "student_answer": str(item.get("student_answer", "Not Attempted")),
+                "max_marks": item.get("max_marks"),
+                "rubric_points": item.get("rubric_points")
+            })
+        elif isinstance(item, str):
+            normalized.append({
+                "question_no": "",
+                "student_answer": item,
+                "max_marks": None,
+                "rubric_points": []
+            })
+    return normalized
+
 def align_answers(questions, rubric, student_ocr):
     """
     Aligns questions, rubrics, and student OCR transcript by matching question numbers or
@@ -40,12 +77,15 @@ def align_answers(questions, rubric, student_ocr):
             temperature=0.1,
         )
         response_text = response.choices[0].message.content
-        aligned_data = parse_json_from_response(response_text)
+        raw_aligned = parse_json_from_response(response_text)
+        aligned_data = normalize_aligned_data(raw_aligned)
         
         # Cross-check and merge properties from questions/rubric if the LLM output is missing any
         # This makes the alignment logic extremely robust.
         merged_data = []
         for q in questions:
+            if not isinstance(q, dict):
+                continue
             q_no = str(q.get("question_no", ""))
             
             # Try to find corresponding aligned item
@@ -65,7 +105,7 @@ def align_answers(questions, rubric, student_ocr):
             # Find rubric points for this question if missing
             rubric_points = []
             for r in rubric:
-                if str(r.get("question_no", "")) == q_no:
+                if isinstance(r, dict) and str(r.get("question_no", "")) == q_no:
                     rubric_points = r.get("rubric_points", [])
                     break
             
@@ -87,10 +127,12 @@ def align_answers(questions, rubric, student_ocr):
         # Fallback in case LLM alignment fails entirely: create a mock/empty alignment
         fallback_data = []
         for q in questions:
+            if not isinstance(q, dict):
+                continue
             q_no = str(q.get("question_no", ""))
             rubric_points = []
             for r in rubric:
-                if str(r.get("question_no", "")) == q_no:
+                if isinstance(r, dict) and str(r.get("question_no", "")) == q_no:
                     rubric_points = r.get("rubric_points", [])
                     break
             fallback_data.append({
