@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Evaluation Results - AI Answer Sheet Evaluator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidebar: Student & Score Overview -->
+    <div class="col-lg-4 mb-4">
+        <div class="glass-card p-4 text-center sticky-top" style="top: 100px; z-index: 10;">
+            <span class="badge bg-success mb-3"><i class="fa-solid fa-circle-check me-1"></i>Evaluation Completed</span>
+            <h2 class="h3 text-light display-font mb-4">Results Summary</h2>
+
+            <!-- Circular Gauge -->
+            <div class="gauge-container mb-4">
+                <svg width="150" height="150" class="gauge-svg">
+                    <defs>
+                        <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="50%" stop-color="#a855f7" />
+                            <stop offset="100%" stop-color="#ec4899" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="75" cy="75" r="70" class="gauge-bg"></circle>
+                    <circle cx="75" cy="75" r="70" class="gauge-progress" 
+                            data-percentage="{% if eval.total_max_marks > 0 %}{{ (eval.total_awarded_marks / eval.total_max_marks) * 100 }}{% else %}0{% endif %}"></circle>
+                </svg>
+                <div class="gauge-text">
+                    <div class="gauge-percentage">0%</div>
+                    <div class="gauge-label">Score</div>
+                </div>
+            </div>
+
+            <!-- Detailed Score Numbers -->
+            <div class="mb-4">
+                <h3 class="display-6 fw-bold">
+                    <span id="awarded-total-score">{{ "%.1f"|format(eval.total_awarded_marks) }}</span>
+                    <span class="text-secondary fs-4">/ <span id="max-total-score">{{ "%.1f"|format(eval.total_max_marks) }}</span></span>
+                </h3>
+                <p class="text-secondary small">Total Marks Awarded</p>
+            </div>
+
+            <!-- Student Profile Cards -->
+            <div class="text-start border-top border-secondary pt-3 mb-4">
+                <div class="mb-2">
+                    <span class="text-secondary small fw-bold d-block">STUDENT NAME</span>
+                    <span class="text-light fw-bold">{{ eval.student_name }}</span>
+                </div>
+                <div class="mb-2">
+                    <span class="text-secondary small fw-bold d-block">STUDENT ID</span>
+                    <span class="text-light fw-bold">{{ eval.student_id }}</span>
+                </div>
+                <div class="mb-2">
+                    <span class="text-secondary small fw-bold d-block">SUBJECT</span>
+                    <span class="text-light fw-bold">{{ eval.subject }}</span>
+                </div>
+                <div>
+                    <span class="text-secondary small fw-bold d-block">EVALUATED ON</span>
+                    <span class="text-light small">{{ eval.timestamp }}</span>
+                </div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="d-grid gap-2">
+                <!-- Toggle English/Tamil feedback -->
+                <div class="toggle-container justify-content-center mb-2">
+                    <span class="text-secondary small fw-bold">EN</span>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="lang-toggle" style="cursor:pointer;">
+                    </div>
+                    <span class="text-secondary small fw-bold">தமிழ் (TA)</span>
+                </div>
+                
+                <a href="{{ url_for('export_csv', eval_id=eval.id) }}" class="btn btn-secondary-custom">
+                    <i class="fa-solid fa-file-csv me-2 text-success"></i>Download CSV Report
+                </a>
+                
+                <button onclick="window.print()" class="btn btn-secondary-custom">
+                    <i class="fa-solid fa-print me-2 text-info"></i>Print / Save PDF
+                </button>
+                
+                <a href="{{ url_for('index') }}" class="btn btn-gradient mt-2">
+                    <i class="fa-solid fa-rotate-left me-2"></i>New Evaluation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Panel: Per-Question Breakdowns -->
+    <div class="col-lg-8">
+        <h2 class="h4 text-light display-font mb-4"><i class="fa-solid fa-list-check me-2 text-primary"></i>Question Breakdown</h2>
+        
+        <form id="update-marks-form" data-eval-id="{{ eval.id }}">
+            {% for q in eval.questions_data %}
+            <div class="glass-card p-4 mb-4">
+                <!-- Card Header -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between border-bottom border-secondary pb-3 mb-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-secondary me-2 fs-6">Question {{ q.question_no }}</span>
+                        <!-- Confidence level indicator -->
+                        {% if q.confidence == 'Low' %}
+                        <span class="badge badge-confidence-low">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>Low Confidence OCR
+                        </span>
+                        {% elif q.confidence == 'Medium' %}
+                        <span class="badge badge-confidence-medium">Medium Confidence</span>
+                        {% else %}
+                        <span class="badge badge-confidence-high">High Confidence</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="fw-bold text-light my-1">
+                        Awarded: <span class="text-primary">{{ q.awarded_marks }}</span> / {{ q.max_marks }} Marks
+                    </div>
+                </div>
+
+                <!-- Question details -->
+                <div class="mb-3">
+                    <h5 class="text-secondary small fw-bold">QUESTION</h5>
+                    <p class="text-light">{{ q.question_text }}</p>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <!-- Expected rubric criteria -->
+                    <div class="col-md-6">
+                        <div class="p-3 rounded h-100" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.03);">
+                            <h6 class="text-primary small fw-bold mb-2">EXPECTED KEY POINTS / RUBRIC</h6>
+                            {% if q.rubric_points %}
+                            <ul class="list-unstyled mb-0 small">
+                                {% for point in q.rubric_points %}
+                                <li class="text-secondary mb-1"><i class="fa-solid fa-circle-notch text-primary me-2" style="font-size:0.6rem;"></i>{{ point }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <span class="text-secondary small italic">No specific rubric points provided.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Student answer sheet OCR content -->
+                    <div class="col-md-6">
+                        <div class="p-3 rounded h-100" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.03);">
+                            <h6 class="text-primary small fw-bold mb-2">STUDENT'S ANSWER (OCR TEXT)</h6>
+                            <p class="text-secondary small mb-0 font-monospace" style="white-space: pre-wrap;">{{ q.student_answer }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Explanations matching/missing points -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-success small fw-bold mb-2"><i class="fa-solid fa-square-check me-2"></i>Matched Key Points</h6>
+                        {% if q.matched_points %}
+                        <ul class="list-unstyled mb-0 small">
+                            {% for p in q.matched_points %}
+                            <li class="text-secondary mb-1"><i class="fa-solid fa-check text-success me-2"></i>{{ p }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <span class="text-secondary small">No matching key points identified.</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-danger small fw-bold mb-2"><i class="fa-solid fa-square-xmark me-2"></i>Missing Key Points</h6>
+                        {% if q.missing_points %}
+                        <ul class="list-unstyled mb-0 small">
+                            {% for p in q.missing_points %}
+                            <li class="text-secondary mb-1"><i class="fa-solid fa-xmark text-danger me-2"></i>{{ p }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <span class="text-secondary small text-success"><i class="fa-solid fa-circle-check me-1"></i>All expected criteria satisfied!</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Feedbacks English vs Tamil -->
+                <div class="mb-4 p-3 rounded" style="background: rgba(99, 102, 241, 0.05); border: 1px dashed rgba(99, 102, 241, 0.2);">
+                    <h6 class="text-primary small fw-bold mb-2"><i class="fa-solid fa-comment-medical me-2"></i>Evaluation Feedback</h6>
+                    
+                    <!-- English feedback (default visible) -->
+                    <p class="feedback-en text-light mb-0 small">{{ q.feedback }}</p>
+                    
+                    <!-- Tamil feedback (hidden by default) -->
+                    <p class="feedback-ta text-light mb-0 small d-none" lang="ta">{{ q.feedback_tamil }}</p>
+                </div>
+
+                <!-- Teacher Manual Override controls -->
+                <div class="border-top border-secondary pt-3 d-flex flex-wrap align-items-center justify-content-between">
+                    <div class="text-secondary small my-1">
+                        <i class="fa-solid fa-circle-info me-1"></i>Concept evaluation match. Adjust marks below to override.
+                    </div>
+                    <div class="d-flex align-items-center my-1">
+                        <label class="text-secondary small fw-bold me-2">Teacher Override:</label>
+                        <input type="number" step="0.5" min="0" max="{{ q.max_marks }}" 
+                               class="form-control glass-input text-center py-1 override-marks-input" 
+                               name="override_marks_{{ loop.index0 }}" 
+                               value="{{ q.awarded_marks }}" 
+                               style="width: 80px;">
+                        <span class="text-secondary small ms-2">/ {{ q.max_marks }} Marks</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </form>
+    </div>
+</div>
+{% endblock %}

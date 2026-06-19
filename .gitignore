@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+.venv/
+ENV/
+
+# Credentials
+.env
+
+# Database and cache
+evaluations.db
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary uploads and cache
+uploads/
+session_*.json
+
+# IDE config folders
+.vscode/
+.idea/

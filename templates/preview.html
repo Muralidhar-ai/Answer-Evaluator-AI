@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Extraction - AI Answer Sheet Evaluator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3 border-secondary">
+            <div>
+                <span class="badge bg-primary mb-2">Step 2 of 3</span>
+                <h1 class="h2 text-light display-font mb-1">Verify Aligned Data & Marks</h1>
+                <p class="text-secondary small mb-0">Review the AI extraction below. Make corrections if needed, assign any missing marks, and click 'Evaluate' to run the scoring engine.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary-custom btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Start Over
+                </a>
+            </div>
+        </div>
+
+        <!-- Student summary banner -->
+        <div class="glass-card p-3 mb-4 d-flex flex-wrap justify-content-between align-items-center">
+            <div class="me-3 my-1">
+                <span class="text-secondary small fw-bold uppercase">Student Name:</span>
+                <span class="text-light fw-bold ms-1">{{ student_name }}</span>
+            </div>
+            <div class="me-3 my-1">
+                <span class="text-secondary small fw-bold uppercase">ID / Roll No:</span>
+                <span class="text-light fw-bold ms-1">{{ student_id }}</span>
+            </div>
+            <div class="my-1">
+                <span class="text-secondary small fw-bold uppercase">Subject:</span>
+                <span class="text-light fw-bold ms-1">{{ subject }}</span>
+            </div>
+        </div>
+
+        <!-- Form for verification & submission -->
+        <form action="{{ url_for('evaluate') }}" method="POST" id="preview-form">
+            <input type="hidden" name="session_id" value="{{ session_id }}">
+            
+            {% for q in questions %}
+            <div class="glass-card p-4 mb-4">
+                <div class="row g-3">
+                    <!-- Left column: Question details -->
+                    <div class="col-md-7">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-secondary me-2">Q. {{ q.question_no }}</span>
+                            <span class="text-primary small fw-bold">Question Details</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-bold">Question Text</label>
+                            <input type="text" class="form-control glass-input" name="question_text_{{ loop.index0 }}" value="{{ q.question_text }}" required>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label text-secondary small fw-bold">Rubric / Expected Key Points (one per line)</label>
+                            <textarea class="form-control glass-input" name="rubric_points_{{ loop.index0 }}" rows="3" placeholder="Expected points...">{% if q.rubric_points %}{{ "\n".join(q.rubric_points) }}{% endif %}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Right column: Max marks and Student answer -->
+                    <div class="col-md-5 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <span class="text-primary small fw-bold"><i class="fa-solid fa-signature me-1"></i>Student Answer</span>
+                                <div class="d-flex align-items-center">
+                                    <label class="text-secondary small fw-bold me-2">Max Marks:</label>
+                                    <input type="number" step="0.5" 
+                                           class="form-control glass-input text-center py-1 {% if not q.max_marks or q.max_marks == 0 %}missing-mark-alert{% endif %}" 
+                                           name="max_marks_{{ loop.index0 }}" 
+                                           value="{% if q.max_marks %}{{ q.max_marks }}{% endif %}" 
+                                           style="width: 80px;" 
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <!-- Highlight message if marks are missing -->
+                            {% if not q.max_marks or q.max_marks == 0 %}
+                            <div class="alert alert-warning py-1 px-2 mb-2 small text-warning border-0" style="background: rgba(245, 158, 11, 0.1);">
+                                <i class="fa-solid fa-circle-exclamation me-1"></i> Marks not detected. Please specify.
+                            </div>
+                            {% endif %}
+                            
+                            <textarea class="form-control glass-input flex-grow-1" name="student_answer_{{ loop.index0 }}" rows="5" placeholder="Student response..." required>{{ q.student_answer }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Submit evaluation -->
+            <div class="text-center my-5">
+                <button type="submit" class="btn btn-gradient btn-lg px-5 py-3">
+                    <i class="fa-solid fa-square-check me-2"></i>Run AI Evaluation Engine
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

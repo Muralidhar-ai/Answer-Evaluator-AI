@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload - AI Answer Sheet Evaluator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Title Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold gradient-text">Evaluate Handwritten Answer Sheets</h1>
+            <p class="text-secondary">Upload exam documents and let LLaMA 4 Maverick extract questions, OCR handwritten scripts, and evaluate answers against your rubrics.</p>
+        </div>
+
+        <form id="upload-form" method="POST" enctype="multipart/form-data">
+            <!-- Student Metadata Section -->
+            <div class="glass-card p-4 mb-4">
+                <h3 class="h5 mb-4 text-primary"><i class="fa-solid fa-address-card me-2"></i>Student & Exam Details</h3>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="student_name" class="form-label text-secondary small fw-bold">Student Name</label>
+                        <input type="text" class="form-control glass-input" id="student_name" name="student_name" placeholder="e.g., Ramesh Kumar" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="student_id" class="form-label text-secondary small fw-bold">Student ID / Roll No</label>
+                        <input type="text" class="form-control glass-input" id="student_id" name="student_id" placeholder="e.g., U10245" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="subject" class="form-label text-secondary small fw-bold">Subject / Course</label>
+                        <input type="text" class="form-control glass-input" id="subject" name="subject" placeholder="e.g., Environmental Chemistry" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Uploads grid -->
+            <div class="row g-4 mb-4">
+                <!-- Question Paper -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="glass-card p-4 h-100 d-flex flex-column">
+                        <h4 class="h6 text-primary fw-bold mb-3">1. Question Paper</h4>
+                        <div class="upload-dropzone mb-3" id="qp-dropzone">
+                            <i class="fa-solid fa-file-invoice"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag PDF / Image here</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="qp-file" name="question_paper_file" accept=".pdf,image/*">
+                            <div class="mt-2 text-primary small text-truncate" id="qp-file-label">No file selected</div>
+                        </div>
+                        
+                        <div class="accordion accordion-custom" id="qpPasteAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#qp-paste-collapse">
+                                        <i class="fa-solid fa-keyboard me-2 text-secondary"></i>Or Paste Plain Text
+                                    </button>
+                                </h2>
+                                <div id="qp-paste-collapse" class="accordion-collapse collapse" data-bs-parent="#qpPasteAccordion">
+                                    <div class="accordion-body p-2">
+                                        <textarea class="form-control glass-input" id="qp-text" name="question_paper_text" rows="4" placeholder="Paste question paper text here..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Answer Key / Rubric -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="glass-card p-4 h-100 d-flex flex-column">
+                        <h4 class="h6 text-primary fw-bold mb-3">2. Answer Key / Rubric</h4>
+                        <div class="upload-dropzone mb-3" id="ak-dropzone">
+                            <i class="fa-solid fa-square-poll-vertical"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag PDF / Image here</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="ak-file" name="answer_key_file" accept=".pdf,image/*">
+                            <div class="mt-2 text-primary small text-truncate" id="ak-file-label">No file selected</div>
+                        </div>
+                        
+                        <div class="accordion accordion-custom" id="akPasteAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#ak-paste-collapse">
+                                        <i class="fa-solid fa-keyboard me-2 text-secondary"></i>Or Paste Plain Text
+                                    </button>
+                                </h2>
+                                <div id="ak-paste-collapse" class="accordion-collapse collapse" data-bs-parent="#akPasteAccordion">
+                                    <div class="accordion-body p-2">
+                                        <textarea class="form-control glass-input" id="ak-text" name="answer_key_text" rows="4" placeholder="Paste model answers / key criteria here..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Answer Sheet -->
+                <div class="col-md-12 col-lg-4">
+                    <div class="glass-card p-4 h-100 d-flex flex-column">
+                        <h4 class="h6 text-primary fw-bold mb-3">3. Student's Answer Sheet</h4>
+                        <div class="upload-dropzone flex-grow-1 d-flex flex-column justify-content-center" id="student-dropzone">
+                            <i class="fa-solid fa-signature"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag Handwritten PDF / Image</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="student-file" name="student_sheet_file" accept=".pdf,image/*" required>
+                            <div class="mt-2 text-primary small text-truncate" id="student-file-label">No file selected</div>
+                        </div>
+                        <div class="text-secondary small mt-2 text-center">
+                            <i class="fa-solid fa-circle-info me-1"></i>Supports multi-page PDF documents.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center my-5">
+                <button type="submit" class="btn btn-gradient btn-lg px-5 py-3">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Extract & Align Documents
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Progress/Loading Modal -->
+<div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border-0 p-4">
+            <div class="modal-body text-center">
+                <h4 class="mb-4 text-light display-font">Processing Documents</h4>
+                <p class="text-secondary small mb-4">Groq AI is analyzing structure and running OCR. Please do not close or reload this window.</p>
+                
+                <!-- Steps Progress List -->
+                <div class="text-start mb-4">
+                    <div class="status-item" id="step-qp">
+                        <div class="status-icon pending"></div>
+                        <span class="text-light small">Extracting Question Paper structure...</span>
+                    </div>
+                    <div class="status-item" id="step-ak">
+                        <div class="status-icon pending"></div>
+                        <span class="text-light small">Extracting Answer Key rubrics...</span>
+                    </div>
+                    <div class="status-item" id="step-ocr">
+                        <div class="status-icon pending"></div>
+                        <span class="text-light small">Performing OCR on handwritten Answer Sheet...</span>
+                    </div>
+                    <div class="status-item" id="step-align">
+                        <div class="status-icon pending"></div>
+                        <span class="text-light small">Aligning questions and answers...</span>
+                    </div>
+                </div>
+
+                <!-- Spinner -->
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

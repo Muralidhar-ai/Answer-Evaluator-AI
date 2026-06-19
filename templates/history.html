@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Past Evaluations - AI Answer Sheet Evaluator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5 border-bottom pb-3 border-secondary">
+            <div>
+                <h1 class="h2 text-light display-font mb-1"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Evaluation History</h1>
+                <p class="text-secondary small mb-0">Browse and inspect past answer sheet evaluation results saved in the database.</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <a href="{{ url_for('export_history_csv') }}" class="btn btn-secondary-custom btn-sm">
+                    <i class="fa-solid fa-file-csv me-1 text-success"></i> Export History CSV
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-gradient btn-sm">
+                    <i class="fa-solid fa-plus me-1"></i> New Evaluation
+                </a>
+            </div>
+        </div>
+
+        <!-- History cards/table -->
+        {% if evaluations %}
+        <div class="glass-card overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr class="text-secondary small">
+                            <th class="py-3 px-4 border-secondary">Student Details</th>
+                            <th class="py-3 border-secondary">Subject</th>
+                            <th class="py-3 border-secondary text-center">Score</th>
+                            <th class="py-3 border-secondary">Date / Time</th>
+                            <th class="py-3 px-4 border-secondary text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in evaluations %}
+                        <tr class="history-row" onclick="window.location.href='{{ url_for('results', eval_id=row.id) }}'">
+                            <td class="py-3 px-4 border-secondary">
+                                <div class="fw-bold text-light">{{ row.student_name }}</div>
+                                <div class="text-secondary small">Roll No: {{ row.student_id }}</div>
+                            </td>
+                            <td class="py-3 border-secondary">
+                                <span class="text-primary small fw-bold">{{ row.subject }}</span>
+                            </td>
+                            <td class="py-3 border-secondary text-center">
+                                <span class="badge py-2 px-3 {% if row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.75 %}bg-success-subtle text-success border border-success{% elif row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.40 %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %}">
+                                    {{ "%.1f"|format(row.total_awarded_marks) }} / {{ "%.1f"|format(row.total_max_marks) }}
+                                </span>
+                            </td>
+                            <td class="py-3 border-secondary text-secondary small">
+                                {{ row.timestamp }}
+                            </td>
+                            <td class="py-3 px-4 border-secondary text-end">
+                                <a href="{{ url_for('results', eval_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3">
+                                    <i class="fa-solid fa-eye me-1"></i>View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <!-- Empty state -->
+        <div class="glass-card p-5 text-center">
+            <div class="mb-4">
+                <i class="fa-solid fa-folder-open text-secondary display-3"></i>
+            </div>
+            <h3 class="h4 text-light display-font mb-2">No Evaluations Yet</h3>
+            <p class="text-secondary small mb-4">Start your first student answer sheet evaluation to record results here.</p>
+            <a href="{{ url_for('index') }}" class="btn btn-gradient px-4">
+                <i class="fa-solid fa-plus me-1"></i> Start Evaluation
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
