@@ -13,7 +13,7 @@ from config import Config
 from utils.storage import (
     init_db, save_evaluation, get_all_evaluations, get_evaluation_by_id, 
     update_evaluation_marks, save_bulk_evaluation, get_all_bulk_evaluations, 
-    get_bulk_evaluation_by_id
+    get_bulk_evaluation_by_id, delete_evaluation, delete_bulk_evaluation
 )
 from utils.ocr import extract_questions_or_rubric, ocr_student_sheet
 from utils.evaluator import align_answers, evaluate_all
@@ -375,6 +375,26 @@ def history():
     evals = get_all_evaluations()
     bulk_evals = get_all_bulk_evaluations()
     return render_template('history.html', evaluations=evals, bulk_evaluations=bulk_evals)
+
+@app.route('/delete-evaluation/<int:eval_id>', methods=['POST'])
+def delete_evaluation_route(eval_id):
+    try:
+        success = delete_evaluation(eval_id)
+        if success:
+            return jsonify({"status": "success", "message": "Evaluation deleted."})
+        return jsonify({"status": "error", "message": "Evaluation not found."}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/delete-bulk/<int:bulk_id>', methods=['POST'])
+def delete_bulk_route(bulk_id):
+    try:
+        success = delete_bulk_evaluation(bulk_id)
+        if success:
+            return jsonify({"status": "success", "message": "Bulk session deleted."})
+        return jsonify({"status": "error", "message": "Bulk session not found."}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/bulk')
 def bulk():

@@ -49,12 +49,12 @@
                                     <th class="py-3 border-secondary">Subject</th>
                                     <th class="py-3 border-secondary text-center">Score</th>
                                     <th class="py-3 border-secondary">Date / Time</th>
-                                    <th class="py-3 px-4 border-secondary text-end">Action</th>
+                                    <th class="py-3 px-4 border-secondary text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for row in evaluations %}
-                                <tr class="history-row" onclick="window.location.href='{{ url_for('results', eval_id=row.id) }}'">
+                                <tr class="history-row" id="eval-row-{{ row.id }}" onclick="window.location.href='{{ url_for('results', eval_id=row.id) }}'">
                                     <td class="py-3 px-4 border-secondary">
                                         <div class="fw-bold text-light">{{ row.student_name }}</div>
                                         <div class="text-secondary small">Roll No: {{ row.student_id }}</div>
@@ -71,9 +71,16 @@
                                         {{ row.timestamp }}
                                     </td>
                                     <td class="py-3 px-4 border-secondary text-end">
-                                        <a href="{{ url_for('results', eval_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3" onclick="event.stopPropagation();">
-                                            <i class="fa-solid fa-eye me-1"></i>View
-                                        </a>
+                                        <div class="d-flex gap-2 justify-content-end" onclick="event.stopPropagation();">
+                                            <a href="{{ url_for('results', eval_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3">
+                                                <i class="fa-solid fa-eye me-1"></i>View
+                                            </a>
+                                            <button class="btn btn-sm py-1 px-3 btn-delete"
+                                                style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; border-radius: 8px;"
+                                                onclick="confirmDelete('eval', {{ row.id }}, '{{ row.student_name }}')">
+                                                <i class="fa-solid fa-trash-can me-1"></i>Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -107,12 +114,12 @@
                                     <th class="py-3 px-4 border-secondary">Class / Subject Details</th>
                                     <th class="py-3 border-secondary text-center">Student Count</th>
                                     <th class="py-3 border-secondary">Date / Time</th>
-                                    <th class="py-3 px-4 border-secondary text-end">Action</th>
+                                    <th class="py-3 px-4 border-secondary text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for row in bulk_evaluations %}
-                                <tr class="history-row" onclick="window.location.href='{{ url_for('bulk_results', bulk_id=row.id) }}'">
+                                <tr class="history-row" id="bulk-row-{{ row.id }}" onclick="window.location.href='{{ url_for('bulk_results', bulk_id=row.id) }}'">
                                     <td class="py-3 px-4 border-secondary">
                                         <div class="fw-bold text-light">{{ row.subject }}</div>
                                         <span class="text-secondary small">Session ID: {{ row.id }}</span>
@@ -126,9 +133,16 @@
                                         {{ row.timestamp }}
                                     </td>
                                     <td class="py-3 px-4 border-secondary text-end">
-                                        <a href="{{ url_for('bulk_results', bulk_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3" onclick="event.stopPropagation();">
-                                            <i class="fa-solid fa-eye me-1"></i>View Class
-                                        </a>
+                                        <div class="d-flex gap-2 justify-content-end" onclick="event.stopPropagation();">
+                                            <a href="{{ url_for('bulk_results', bulk_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3">
+                                                <i class="fa-solid fa-eye me-1"></i>View Class
+                                            </a>
+                                            <button class="btn btn-sm py-1 px-3 btn-delete"
+                                                style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; border-radius: 8px;"
+                                                onclick="confirmDelete('bulk', {{ row.id }}, '{{ row.subject }}')">
+                                                <i class="fa-solid fa-trash-can me-1"></i>Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -153,6 +167,28 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content glass-card border-0 p-3">
+            <div class="modal-body text-center py-3">
+                <div class="mb-3">
+                    <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 2.5rem;"></i>
+                </div>
+                <h5 class="text-light fw-bold mb-1">Delete Evaluation?</h5>
+                <p class="text-secondary small mb-0" id="delete-modal-label">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0 gap-2">
+                <button type="button" class="btn btn-secondary-custom btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm px-4 fw-bold" id="confirm-delete-btn"
+                    style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; border-radius: 8px;">
+                    <i class="fa-solid fa-trash-can me-1"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .nav-tabs .nav-link {
     transition: all 0.2s ease-in-out;
@@ -168,5 +204,55 @@
 .nav-tabs .nav-link:not(.active):hover {
     color: #adb5bd !important;
 }
+.btn-delete:hover {
+    background: rgba(239,68,68,0.25) !important;
+    border-color: rgba(239,68,68,0.6) !important;
+    color: #fca5a5 !important;
+}
+@keyframes fadeSlideOut {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(30px); }
+}
 </style>
+
+<script>
+let _deleteType = null;
+let _deleteId   = null;
+
+function confirmDelete(type, id, label) {
+    _deleteType = type;
+    _deleteId   = id;
+    const prefix = type === 'eval' ? 'student evaluation for' : 'bulk session for';
+    document.getElementById('delete-modal-label').textContent =
+        `Delete ${prefix} "${label}"? This cannot be undone.`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+document.getElementById('confirm-delete-btn').addEventListener('click', async function () {
+    const url = _deleteType === 'eval'
+        ? `/delete-evaluation/${_deleteId}`
+        : `/delete-bulk/${_deleteId}`;
+    const rowId = _deleteType === 'eval'
+        ? `eval-row-${_deleteId}`
+        : `bulk-row-${_deleteId}`;
+
+    bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+
+    try {
+        const res = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.style.animation = 'fadeSlideOut 0.35s ease forwards';
+                setTimeout(() => row.remove(), 360);
+            }
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (e) {
+        alert('Delete failed. Please try again.');
+    }
+});
+</script>
 {% endblock %}

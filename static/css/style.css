@@ -62,6 +62,22 @@ h1, h2, h3, h4, h5, h6, .display-font {
     background-clip: text;
 }
 
+/* Hero Tagline — sky-blue bold with glow */
+.tagline-hero {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #00bfff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 18px rgba(0, 191, 255, 0.45), 0 0 40px rgba(0, 191, 255, 0.2);
+    animation: tagline-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes tagline-glow {
+    from { text-shadow: 0 0 12px rgba(0, 191, 255, 0.35), 0 0 30px rgba(0, 191, 255, 0.15); }
+    to   { text-shadow: 0 0 24px rgba(0, 191, 255, 0.65), 0 0 55px rgba(0, 191, 255, 0.35); }
+}
+
 /* Nav Bar styling */
 .navbar-custom {
     background: rgba(9, 13, 22, 0.8);

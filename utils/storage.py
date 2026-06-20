@@ -184,3 +184,28 @@ def get_bulk_evaluation_by_id(bulk_id):
         bulk_dict["evaluation_ids"] = json.loads(bulk_dict["evaluation_ids"])
         return bulk_dict
     return None
+
+def delete_evaluation(eval_id):
+    """
+    Deletes a single evaluation record by ID.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM evaluations WHERE id = ?", (eval_id,))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+def delete_bulk_evaluation(bulk_id):
+    """
+    Deletes a bulk evaluation session by ID.
+    Individual student evaluations are kept in history.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM bulk_evaluations WHERE id = ?", (bulk_id,))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
