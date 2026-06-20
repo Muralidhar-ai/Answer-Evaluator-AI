@@ -48,6 +48,81 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDropzone('student-dropzone', 'student-file', 'student-file-label');
 
     // ----------------------------------------------------
+    // Reusable Splash / Loading Screen Controller
+    // ----------------------------------------------------
+    const EvalIQSplash = {
+        show: function(taglineText, showCredits = false) {
+            const overlay = document.getElementById('evaliq-splash-screen');
+            const tagline = document.getElementById('splash-tagline');
+            const credits = document.getElementById('splash-credits');
+            const progressContainer = document.getElementById('splash-progress-container');
+            
+            if (!overlay) return;
+            
+            tagline.textContent = taglineText || "AI-Powered Answer Sheet Evaluation";
+            credits.style.display = showCredits ? 'block' : 'none';
+            progressContainer.style.display = 'none'; // hidden by default
+            
+            overlay.style.display = 'flex';
+            // Force reflow
+            overlay.offsetHeight;
+            overlay.style.opacity = '1';
+        },
+        
+        hide: function() {
+            const overlay = document.getElementById('evaliq-splash-screen');
+            if (!overlay) return;
+            
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 400);
+        },
+        
+        updateStatus: function(statusText) {
+            const tagline = document.getElementById('splash-tagline');
+            if (tagline) {
+                tagline.textContent = statusText;
+            }
+        },
+
+        showBulkProgress: function(statusText, percentage) {
+            const overlay = document.getElementById('evaliq-splash-screen');
+            const tagline = document.getElementById('splash-tagline');
+            const credits = document.getElementById('splash-credits');
+            const progressContainer = document.getElementById('splash-progress-container');
+            const progressBar = document.getElementById('splash-progress-bar');
+            const progressPercent = document.getElementById('splash-progress-percent');
+            const progressLeft = document.getElementById('splash-progress-left');
+            
+            if (!overlay) return;
+            
+            tagline.textContent = "Processing Bulk Evaluation Session...";
+            credits.style.display = 'none';
+            progressContainer.style.display = 'block';
+            
+            progressLeft.textContent = statusText;
+            progressBar.style.width = `${percentage}%`;
+            progressPercent.textContent = `${percentage}%`;
+            
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+    };
+
+    // Expose to other scopes (e.g. inline scripts)
+    window.EvalIQSplash = EvalIQSplash;
+
+    // 1. Initial Page Load Splash Screen on Home Page (Upload page)
+    if (window.location.pathname === '/' && !sessionStorage.getItem('splash_shown')) {
+        EvalIQSplash.show("AI-Powered Answer Sheet Evaluation", true);
+        sessionStorage.setItem('splash_shown', 'true');
+        setTimeout(() => {
+            EvalIQSplash.hide();
+        }, 1800);
+    }
+
+    // ----------------------------------------------------
     // 2. AJAX Upload & Simulated Step Progress
     // ----------------------------------------------------
     const uploadForm = document.getElementById('upload-form');
@@ -78,33 +153,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Show Progress Modal
-            const progressModal = new bootstrap.Modal(document.getElementById('progressModal'), {
-                backdrop: 'static',
-                keyboard: false
-            });
-            progressModal.show();
-
-            // Set up simulated step indicators
+            // Show EvalIQ splash screen as processing overlay
             const steps = [
-                { elementId: 'step-qp', name: 'Extracting Question Paper structure...' },
-                { elementId: 'step-ak', name: 'Extracting Answer Key rubrics...' },
-                { elementId: 'step-ocr', name: 'Performing OCR on handwritten Answer Sheet...' },
-                { elementId: 'step-align', name: 'Aligning questions and answers...' }
+                { name: 'Extracting Question Paper structure...' },
+                { name: 'Extracting Answer Key rubrics...' },
+                { name: 'Performing OCR on handwritten Answer Sheet...' },
+                { name: 'Aligning questions and answers...' }
             ];
 
-            // Set all to pending initial state
-            steps.forEach(s => setStepState(s.elementId, 'pending'));
+            EvalIQSplash.show(steps[0].name, false);
 
             // Progress simulator variables
             let currentStepIdx = 0;
-            setStepState(steps[currentStepIdx].elementId, 'loading');
-
             const stepTimer = setInterval(() => {
                 if (currentStepIdx < steps.length - 1) {
-                    setStepState(steps[currentStepIdx].elementId, 'done');
                     currentStepIdx++;
-                    setStepState(steps[currentStepIdx].elementId, 'loading');
+                    EvalIQSplash.updateStatus(steps[currentStepIdx].name);
                 }
             }, 3500); // Progress transitions every 3.5 seconds
 
@@ -119,22 +183,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(stepTimer);
 
                 if (response.ok && result.status === 'success') {
-                    // Complete all steps visually
-                    for (let i = currentStepIdx; i < steps.length; i++) {
-                        setStepState(steps[i].elementId, 'done');
-                    }
-                    
-                    // Redirect to preview
+                    EvalIQSplash.updateStatus("Alignment complete! Loading preview...");
                     setTimeout(() => {
                         window.location.href = `/preview?session_id=${result.session_id}`;
                     }, 800);
                 } else {
-                    progressModal.hide();
+                    EvalIQSplash.hide();
                     alert(result.message || 'An error occurred during extraction.');
                 }
             } catch (err) {
                 clearInterval(stepTimer);
-                progressModal.hide();
+                EvalIQSplash.hide();
                 console.error(err);
                 alert('An error occurred during communication with the server.');
             }
@@ -221,6 +280,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Recalculate percentage and update circular progress gauge
                         const percentage = maxTotal > 0 ? (newAwarded / maxTotal) * 100 : 0;
                         updateCircularGauge(percentage);
+
+                        // Update PASS/FAIL badge dynamically
+                        const passMarks = parseFloat(updateMarksForm.getAttribute('data-pass-marks')) || 0.0;
+                        const totalMarks = parseFloat(updateMarksForm.getAttribute('data-total-marks')) || 0.0;
+                        const badgeContainer = document.getElementById('pass-fail-badge-container');
+                        const statusBadge = document.getElementById('pass-fail-status-badge');
+                        if (totalMarks > 0 && badgeContainer && statusBadge) {
+                            if (newAwarded >= passMarks) {
+                                statusBadge.className = "badge bg-success py-2 px-3 fs-5 mb-2";
+                                statusBadge.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i>PASS';
+                            } else {
+                                statusBadge.className = "badge bg-danger py-2 px-3 fs-5 mb-2";
+                                statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i>FAIL';
+                            }
+                        }
                     } else {
                         alert(result.message || 'Failed to update marks.');
                     }

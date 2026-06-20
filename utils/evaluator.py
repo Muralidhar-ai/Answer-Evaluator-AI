@@ -2,6 +2,10 @@ import json
 from groq import Groq
 from config import Config
 from utils.ocr import parse_json_from_response
+from utils.similarity import get_similarity_score
+
+# Threshold difference between LLM and semantic similarity scores to flag manual review
+DISAGREEMENT_THRESHOLD = 30.0
 
 def get_groq_client():
     if not Config.GROQ_API_KEY:
@@ -168,7 +172,11 @@ def evaluate_student_answer(q):
             "missing_points": rubric_points,
             "feedback": "Question not attempted.",
             "feedback_tamil": "இந்த கேள்விக்கு விடை எழுதப்படவில்லை.",
-            "confidence": "High"
+            "confidence": "High",
+            "final_awarded_marks": 0.0,
+            "similarity_score": 0.0,
+            "semantic_matched_points": [],
+            "needs_manual_review": False
         }
 
     client = get_groq_client()
@@ -220,6 +228,29 @@ def evaluate_student_answer(q):
             result["awarded_marks"] = result["max_marks"]
         if result["awarded_marks"] < 0:
             result["awarded_marks"] = 0.0
+
+        # Calculate semantic similarity scoring
+        sim_res = get_similarity_score(student_answer, rubric_points)
+        similarity_score = sim_res.get("similarity_score", 0.0)
+        semantic_matched_points = sim_res.get("matched_rubric_points", [])
+
+        # Calculate percentages
+        llm_score_as_percent = (result["awarded_marks"] / result["max_marks"] * 100.0) if result["max_marks"] > 0 else 0.0
+        similarity_score_as_percent = similarity_score
+
+        # Calculate final combined score
+        final_percent = (0.7 * llm_score_as_percent) + (0.3 * similarity_score_as_percent)
+        final_marks = round((final_percent / 100.0) * result["max_marks"], 1) if result["max_marks"] > 0 else 0.0
+
+        # Disagreement manual review flag
+        disagreement = abs(llm_score_as_percent - similarity_score_as_percent)
+        needs_manual_review = disagreement > DISAGREEMENT_THRESHOLD
+
+        # Add new fields to the result dictionary
+        result["final_awarded_marks"] = final_marks
+        result["similarity_score"] = similarity_score
+        result["semantic_matched_points"] = semantic_matched_points
+        result["needs_manual_review"] = needs_manual_review
             
         return result
     except Exception as e:
@@ -232,7 +263,11 @@ def evaluate_student_answer(q):
             "missing_points": rubric_points,
             "feedback": f"Evaluation error: {str(e)}",
             "feedback_tamil": f"மதிப்பீட்டு பிழை: {str(e)}",
-            "confidence": "Low"
+            "confidence": "Low",
+            "final_awarded_marks": 0.0,
+            "similarity_score": 0.0,
+            "semantic_matched_points": [],
+            "needs_manual_review": False
         }
 
 def evaluate_all(aligned_questions):
@@ -252,7 +287,7 @@ def evaluate_all(aligned_questions):
         
         results.append(eval_res)
         total_max += float(eval_res.get("max_marks", 0))
-        total_awarded += float(eval_res.get("awarded_marks", 0))
+        total_awarded += float(eval_res.get("final_awarded_marks", 0.0))
 
     return {
         "total_max_marks": total_max,

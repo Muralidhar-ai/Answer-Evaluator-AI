@@ -57,14 +57,17 @@ def parse_json_from_response(text):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Fallback to search first [ or { and last ] or }
-        start_idx = min(text.find('['), text.find('{'))
-        end_idx = max(text.rfind(']'), text.rfind('}'))
-        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-            try:
-                return json.loads(text[start_idx:end_idx+1])
-            except json.JSONDecodeError:
-                pass
+        # Fallback: find the first [ or { and last ] or }, ignoring -1 (not found)
+        candidates_start = [pos for pos in [text.find('['), text.find('{')] if pos != -1]
+        candidates_end = [pos for pos in [text.rfind(']'), text.rfind('}')] if pos != -1]
+        if candidates_start and candidates_end:
+            start_idx = min(candidates_start)
+            end_idx = max(candidates_end)
+            if start_idx < end_idx:
+                try:
+                    return json.loads(text[start_idx:end_idx+1])
+                except json.JSONDecodeError:
+                    pass
         raise ValueError(f"Could not parse valid JSON from the model response. Raw response: {text}")
 
 def normalize_extracted_questions(parsed_json):
@@ -169,13 +172,19 @@ def extract_questions_or_rubric(file_bytes=None, filename=None, paste_text=None,
             }
         ]
 
+    # Determine if this request includes image content (vision/multimodal)
+    # JSON mode (response_format=json_object) is NOT supported for vision requests
+    has_images = isinstance(messages[0].get("content"), list) and any(
+        item.get("type") == "image_url" for item in messages[0].get("content", [])
+    ) if messages else False
+
     try:
         response = client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=0.1,
-            # Using JSON mode if supported by model, otherwise fallback to plain text parsing
-            response_format={"type": "json_object"} if "vision" not in model.lower() and "maverick" not in model.lower() else None
+            # Only use JSON mode for text-only (non-vision) requests
+            response_format={"type": "json_object"} if not has_images else None
         )
         response_text = response.choices[0].message.content
         parsed = parse_json_from_response(response_text)

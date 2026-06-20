@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Past Evaluations - AI Answer Sheet Evaluator{% endblock %}
+{% block title %}Past Evaluations - EvalIQ{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -21,62 +21,152 @@
             </div>
         </div>
 
-        <!-- History cards/table -->
-        {% if evaluations %}
-        <div class="glass-card overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0 align-middle">
-                    <thead>
-                        <tr class="text-secondary small">
-                            <th class="py-3 px-4 border-secondary">Student Details</th>
-                            <th class="py-3 border-secondary">Subject</th>
-                            <th class="py-3 border-secondary text-center">Score</th>
-                            <th class="py-3 border-secondary">Date / Time</th>
-                            <th class="py-3 px-4 border-secondary text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in evaluations %}
-                        <tr class="history-row" onclick="window.location.href='{{ url_for('results', eval_id=row.id) }}'">
-                            <td class="py-3 px-4 border-secondary">
-                                <div class="fw-bold text-light">{{ row.student_name }}</div>
-                                <div class="text-secondary small">Roll No: {{ row.student_id }}</div>
-                            </td>
-                            <td class="py-3 border-secondary">
-                                <span class="text-primary small fw-bold">{{ row.subject }}</span>
-                            </td>
-                            <td class="py-3 border-secondary text-center">
-                                <span class="badge py-2 px-3 {% if row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.75 %}bg-success-subtle text-success border border-success{% elif row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.40 %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %}">
-                                    {{ "%.1f"|format(row.total_awarded_marks) }} / {{ "%.1f"|format(row.total_max_marks) }}
-                                </span>
-                            </td>
-                            <td class="py-3 border-secondary text-secondary small">
-                                {{ row.timestamp }}
-                            </td>
-                            <td class="py-3 px-4 border-secondary text-end">
-                                <a href="{{ url_for('results', eval_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3">
-                                    <i class="fa-solid fa-eye me-1"></i>View
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Tabs Nav -->
+        <ul class="nav nav-tabs border-secondary mb-4" id="historyTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active bg-transparent border-0 pb-2" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-evals-tab" type="button" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-user me-2 text-primary"></i>Single Student Evals
+                </button>
+            </li>
+            <li class="nav-item ms-3" role="presentation">
+                <button class="nav-link bg-transparent border-0 pb-2" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk-evals-tab" type="button" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-people-group me-2 text-primary"></i>Bulk Class Evals
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="historyTabsContent">
+            <!-- Single Evals Tab -->
+            <div class="tab-pane fade show active" id="single-evals-tab" role="tabpanel">
+                {% if evaluations %}
+                <div class="glass-card overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead>
+                                <tr class="text-secondary small">
+                                    <th class="py-3 px-4 border-secondary">Student Details</th>
+                                    <th class="py-3 border-secondary">Subject</th>
+                                    <th class="py-3 border-secondary text-center">Score</th>
+                                    <th class="py-3 border-secondary">Date / Time</th>
+                                    <th class="py-3 px-4 border-secondary text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in evaluations %}
+                                <tr class="history-row" onclick="window.location.href='{{ url_for('results', eval_id=row.id) }}'">
+                                    <td class="py-3 px-4 border-secondary">
+                                        <div class="fw-bold text-light">{{ row.student_name }}</div>
+                                        <div class="text-secondary small">Roll No: {{ row.student_id }}</div>
+                                    </td>
+                                    <td class="py-3 border-secondary">
+                                        <span class="text-primary small fw-bold">{{ row.subject }}</span>
+                                    </td>
+                                    <td class="py-3 border-secondary text-center">
+                                        <span class="badge py-2 px-3 {% if row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.75 %}bg-success-subtle text-success border border-success{% elif row.total_max_marks > 0 and (row.total_awarded_marks / row.total_max_marks) >= 0.40 %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %}">
+                                            {{ "%.1f"|format(row.total_awarded_marks) }} / {{ "%.1f"|format(row.total_max_marks) }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 border-secondary text-secondary small">
+                                        {{ row.timestamp }}
+                                    </td>
+                                    <td class="py-3 px-4 border-secondary text-end">
+                                        <a href="{{ url_for('results', eval_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3" onclick="event.stopPropagation();">
+                                            <i class="fa-solid fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Empty state -->
+                <div class="glass-card p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fa-solid fa-folder-open text-secondary display-3"></i>
+                    </div>
+                    <h3 class="h4 text-light display-font mb-2">No Evaluations Yet</h3>
+                    <p class="text-secondary small mb-4">Start your first student answer sheet evaluation to record results here.</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-gradient px-4">
+                        <i class="fa-solid fa-plus me-1"></i> Start Evaluation
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Bulk Evals Tab -->
+            <div class="tab-pane fade" id="bulk-evals-tab" role="tabpanel">
+                {% if bulk_evaluations %}
+                <div class="glass-card overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead>
+                                <tr class="text-secondary small">
+                                    <th class="py-3 px-4 border-secondary">Class / Subject Details</th>
+                                    <th class="py-3 border-secondary text-center">Student Count</th>
+                                    <th class="py-3 border-secondary">Date / Time</th>
+                                    <th class="py-3 px-4 border-secondary text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in bulk_evaluations %}
+                                <tr class="history-row" onclick="window.location.href='{{ url_for('bulk_results', bulk_id=row.id) }}'">
+                                    <td class="py-3 px-4 border-secondary">
+                                        <div class="fw-bold text-light">{{ row.subject }}</div>
+                                        <span class="text-secondary small">Session ID: {{ row.id }}</span>
+                                    </td>
+                                    <td class="py-3 border-secondary text-center">
+                                        <span class="badge py-2 px-3 bg-secondary">
+                                            {{ row.student_count }} Students
+                                        </span>
+                                    </td>
+                                    <td class="py-3 border-secondary text-secondary small">
+                                        {{ row.timestamp }}
+                                    </td>
+                                    <td class="py-3 px-4 border-secondary text-end">
+                                        <a href="{{ url_for('bulk_results', bulk_id=row.id) }}" class="btn btn-secondary-custom btn-sm py-1 px-3" onclick="event.stopPropagation();">
+                                            <i class="fa-solid fa-eye me-1"></i>View Class
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="glass-card p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fa-solid fa-folder-open text-secondary display-3"></i>
+                    </div>
+                    <h3 class="h4 text-light display-font mb-2">No Bulk Evaluations</h3>
+                    <p class="text-secondary small mb-4">Start your first bulk class evaluation to record class summaries here.</p>
+                    <a href="{{ url_for('bulk') }}" class="btn btn-gradient px-4">
+                        <i class="fa-solid fa-plus me-1"></i> Start Bulk Mode
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
-        {% else %}
-        <!-- Empty state -->
-        <div class="glass-card p-5 text-center">
-            <div class="mb-4">
-                <i class="fa-solid fa-folder-open text-secondary display-3"></i>
-            </div>
-            <h3 class="h4 text-light display-font mb-2">No Evaluations Yet</h3>
-            <p class="text-secondary small mb-4">Start your first student answer sheet evaluation to record results here.</p>
-            <a href="{{ url_for('index') }}" class="btn btn-gradient px-4">
-                <i class="fa-solid fa-plus me-1"></i> Start Evaluation
-            </a>
-        </div>
-        {% endif %}
     </div>
 </div>
+
+<style>
+.nav-tabs .nav-link {
+    transition: all 0.2s ease-in-out;
+}
+.nav-tabs .nav-link.active {
+    color: #fff !important;
+    border-bottom: 3px solid var(--primary-color) !important;
+}
+.nav-tabs .nav-link:not(.active) {
+    color: #6c757d !important;
+    border-bottom: 3px solid transparent !important;
+}
+.nav-tabs .nav-link:not(.active):hover {
+    color: #adb5bd !important;
+}
+</style>
 {% endblock %}

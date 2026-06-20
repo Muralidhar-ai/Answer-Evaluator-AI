@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Evaluation Results - AI Answer Sheet Evaluator{% endblock %}
+{% block title %}Evaluation Results - EvalIQ{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -8,6 +8,11 @@
     <div class="col-lg-4 mb-4">
         <div class="glass-card p-4 text-center sticky-top" style="top: 100px; z-index: 10;">
             <span class="badge bg-success mb-3"><i class="fa-solid fa-circle-check me-1"></i>Evaluation Completed</span>
+            {% if eval.needs_manual_review %}
+            <div class="alert alert-warning py-2 px-3 mb-3 text-start small border-warning" style="background: rgba(255, 193, 7, 0.1); color: #ffca2c; border: 1px solid rgba(255, 193, 7, 0.2); border-radius: 8px;">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Flagged for manual review</strong> — AI scoring methods disagree significantly
+            </div>
+            {% endif %}
             <h2 class="h3 text-light display-font mb-4">Results Summary</h2>
 
             <!-- Circular Gauge -->
@@ -32,11 +37,29 @@
 
             <!-- Detailed Score Numbers -->
             <div class="mb-4">
-                <h3 class="display-6 fw-bold">
+                <h3 class="display-6 fw-bold mb-1">
                     <span id="awarded-total-score">{{ "%.1f"|format(eval.total_awarded_marks) }}</span>
                     <span class="text-secondary fs-4">/ <span id="max-total-score">{{ "%.1f"|format(eval.total_max_marks) }}</span></span>
                 </h3>
-                <p class="text-secondary small">Total Marks Awarded</p>
+                <p class="text-secondary small mb-3">Total Marks Awarded</p>
+
+                <!-- PASS / FAIL BADGE -->
+                {% if eval.total_marks and eval.total_marks > 0 %}
+                    {% set pass_status = eval.total_awarded_marks >= eval.pass_marks %}
+                    <div id="pass-fail-badge-container" class="d-flex flex-column align-items-center mb-3">
+                        {% if pass_status %}
+                        <span class="badge bg-success py-2 px-3 fs-5 mb-2" id="pass-fail-status-badge"><i class="fa-solid fa-circle-check me-1"></i>PASS</span>
+                        {% else %}
+                        <span class="badge bg-danger py-2 px-3 fs-5 mb-2" id="pass-fail-status-badge"><i class="fa-solid fa-circle-xmark me-1"></i>FAIL</span>
+                        {% endif %}
+                        <span class="text-secondary small">
+                            Pass Mark Criteria: <strong>{{ "%.1f"|format(eval.pass_marks) }} / {{ "%.1f"|format(eval.total_marks) }}</strong>
+                            {% if eval.total_marks > 0 %}
+                            ({{ "%.1f"|format((eval.pass_marks / eval.total_marks) * 100) }}%)
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Student Profile Cards -->
@@ -89,7 +112,7 @@
     <div class="col-lg-8">
         <h2 class="h4 text-light display-font mb-4"><i class="fa-solid fa-list-check me-2 text-primary"></i>Question Breakdown</h2>
         
-        <form id="update-marks-form" data-eval-id="{{ eval.id }}">
+        <form id="update-marks-form" data-eval-id="{{ eval.id }}" data-pass-marks="{{ eval.pass_marks|default(0.0) }}" data-total-marks="{{ eval.total_marks|default(0.0) }}">
             {% for q in eval.questions_data %}
             <div class="glass-card p-4 mb-4">
                 <!-- Card Header -->
@@ -109,7 +132,7 @@
                     </div>
                     
                     <div class="fw-bold text-light my-1">
-                        Awarded: <span class="text-primary">{{ q.awarded_marks }}</span> / {{ q.max_marks }} Marks
+                        Official Score: <span class="text-primary fs-5" style="text-shadow: 0 0 8px rgba(99, 102, 241, 0.3);">{{ q.final_awarded_marks|default(q.awarded_marks, true) }}</span> / {{ q.max_marks }} Marks
                     </div>
                 </div>
 
@@ -117,6 +140,35 @@
                 <div class="mb-3">
                     <h5 class="text-secondary small fw-bold">QUESTION</h5>
                     <p class="text-light">{{ q.question_text }}</p>
+                </div>
+
+                {% if q.needs_manual_review %}
+                <div class="alert alert-warning py-2 px-3 mb-3 small d-flex align-items-center" style="background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.2); color: #ffca2c; border-radius: 6px;">
+                    <i class="fa-solid fa-triangle-exclamation me-2 fs-6"></i>
+                    <span>⚠️ Flagged for manual review — AI scoring methods disagree significantly</span>
+                </div>
+                {% endif %}
+
+                <!-- Scoring Layer Breakdown -->
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-4">
+                        <div class="p-2 rounded h-100 d-flex flex-column justify-content-center" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                            <span class="text-secondary small d-block" style="font-size:0.75rem;">Groq LLM Score</span>
+                            <span class="text-light fw-bold small mt-1">{{ q.awarded_marks }} / {{ q.max_marks }}</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 rounded h-100 d-flex flex-column justify-content-center" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                            <span class="text-secondary small d-block" style="font-size:0.75rem;">Similarity Score</span>
+                            <span class="text-light fw-bold small mt-1">{{ q.similarity_score|default(0.0) }}%</span>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 rounded h-100 d-flex flex-column justify-content-center" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3);">
+                            <span class="text-primary small fw-bold d-block" style="font-size:0.75rem;">Combined Score</span>
+                            <span class="text-primary fw-bold mt-1">{{ q.final_awarded_marks|default(q.awarded_marks, true) }} / {{ q.max_marks }}</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row g-3 mb-3">
@@ -147,8 +199,8 @@
 
                 <!-- Explanations matching/missing points -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <h6 class="text-success small fw-bold mb-2"><i class="fa-solid fa-square-check me-2"></i>Matched Key Points</h6>
+                    <div class="col-md-4">
+                        <h6 class="text-success small fw-bold mb-2"><i class="fa-solid fa-square-check me-2"></i>LLM Matched Points</h6>
                         {% if q.matched_points %}
                         <ul class="list-unstyled mb-0 small">
                             {% for p in q.matched_points %}
@@ -156,10 +208,22 @@
                             {% endfor %}
                         </ul>
                         {% else %}
-                        <span class="text-secondary small">No matching key points identified.</span>
+                        <span class="text-secondary small italic">No LLM matching points.</span>
                         {% endif %}
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <h6 class="text-info small fw-bold mb-2"><i class="fa-solid fa-magnifying-glass-chart me-2"></i>Semantic Matched</h6>
+                        {% if q.semantic_matched_points %}
+                        <ul class="list-unstyled mb-0 small">
+                            {% for p in q.semantic_matched_points %}
+                            <li class="text-secondary mb-1"><i class="fa-solid fa-circle-check text-info me-2"></i>{{ p }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <span class="text-secondary small italic">No semantic matches (similarity &lt; 0.45).</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
                         <h6 class="text-danger small fw-bold mb-2"><i class="fa-solid fa-square-xmark me-2"></i>Missing Key Points</h6>
                         {% if q.missing_points %}
                         <ul class="list-unstyled mb-0 small">
@@ -194,7 +258,7 @@
                         <input type="number" step="0.5" min="0" max="{{ q.max_marks }}" 
                                class="form-control glass-input text-center py-1 override-marks-input" 
                                name="override_marks_{{ loop.index0 }}" 
-                               value="{{ q.awarded_marks }}" 
+                               value="{{ q.final_awarded_marks|default(q.awarded_marks, true) }}" 
                                style="width: 80px;">
                         <span class="text-secondary small ms-2">/ {{ q.max_marks }} Marks</span>
                     </div>

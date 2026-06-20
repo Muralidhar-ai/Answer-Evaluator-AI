@@ -7,7 +7,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "default-dev-key-12345")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-4-maverick")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
     
     # Upload configurations
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))

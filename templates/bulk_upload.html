@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Upload - EvalIQ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Title Header -->
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold gradient-text">Bulk Class Evaluation</h1>
+            <p class="text-secondary">Upload a single Question Paper and Answer Key Rubric, then upload all student answer sheets (either as a ZIP folder or by selecting multiple files) for automated class grading.</p>
+        </div>
+
+        <form id="bulk-upload-form" method="POST" enctype="multipart/form-data">
+            <!-- Course / Subject Detail -->
+            <div class="glass-card p-4 mb-4">
+                <h3 class="h5 mb-3 text-primary"><i class="fa-solid fa-graduation-cap me-2"></i>Class & Course Details</h3>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="subject" class="form-label text-secondary small fw-bold">Subject / Course Name</label>
+                        <input type="text" class="form-control glass-input" id="subject" name="subject" placeholder="e.g., Database Management Systems (DBMS)" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="total_marks" class="form-label text-secondary small fw-bold">Total Marks (Optional)</label>
+                        <input type="number" step="0.5" min="0" class="form-control glass-input" id="total_marks" name="total_marks" placeholder="Calculated from QP if empty">
+                        <div class="form-text text-secondary small">Sum of QP max marks will be used if left blank.</div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-secondary small fw-bold mb-0">Pass Criterion</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="use_percentage_switch" name="use_percentage">
+                                <label class="form-check-label text-secondary small" for="use_percentage_switch">Use %</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Direct Pass Marks Input -->
+                        <div id="pass_marks_wrapper">
+                            <input type="number" step="0.5" min="0" class="form-control glass-input" id="pass_marks" name="pass_marks" placeholder="e.g., 20">
+                        </div>
+                        
+                        <!-- Pass Percentage Input (Hidden by default) -->
+                        <div id="pass_percentage_wrapper" style="display: none;">
+                            <div class="input-group">
+                                <input type="number" step="1" min="0" max="100" class="form-control glass-input" id="pass_percentage" name="pass_percentage" value="40" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                <span class="input-group-text text-light" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-left: none; border-top-right-radius: var(--bs-border-radius); border-bottom-right-radius: var(--bs-border-radius);">%</span>
+                            </div>
+                        </div>
+                        <div class="form-text text-secondary small" id="pass_help_text">Enter direct minimum pass marks required.</div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <!-- Validation/Calculation Display -->
+                        <div id="validation_feedback" class="alert alert-danger py-2 px-3 mb-0 w-100 small border-0" style="display: none; background: rgba(239, 68, 68, 0.1);">
+                            <i class="fa-solid fa-circle-exclamation me-1 text-danger"></i> Pass marks cannot exceed total marks!
+                        </div>
+                        <div id="calculation_display" class="alert alert-info py-2 px-3 mb-0 w-100 small border-0 text-info" style="display: none; background: rgba(59, 130, 246, 0.1);">
+                            <i class="fa-solid fa-circle-info me-1"></i> Calc. Pass Marks: <strong id="calculated_pass_marks_val">0.0</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rubrics and Question Paper uploads -->
+            <div class="row g-4 mb-4">
+                <!-- Question Paper -->
+                <div class="col-md-6">
+                    <div class="glass-card p-4 h-100 d-flex flex-column">
+                        <h4 class="h6 text-primary fw-bold mb-3">1. Question Paper</h4>
+                        <div class="upload-dropzone mb-3" id="qp-dropzone">
+                            <i class="fa-solid fa-file-invoice"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag PDF / Image here</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="qp-file" name="question_paper_file" accept=".pdf,image/*">
+                            <div class="mt-2 text-primary small text-truncate" id="qp-file-label">No file selected</div>
+                        </div>
+                        
+                        <div class="accordion accordion-custom" id="qpPasteAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#qp-paste-collapse">
+                                        <i class="fa-solid fa-keyboard me-2 text-secondary"></i>Or Paste Plain Text
+                                    </button>
+                                </h2>
+                                <div id="qp-paste-collapse" class="accordion-collapse collapse" data-bs-parent="#qpPasteAccordion">
+                                    <div class="accordion-body p-2">
+                                        <textarea class="form-control glass-input" id="qp-text" name="question_paper_text" rows="4" placeholder="Paste question paper text here..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Answer Key / Rubric -->
+                <div class="col-md-6">
+                    <div class="glass-card p-4 h-100 d-flex flex-column">
+                        <h4 class="h6 text-primary fw-bold mb-3">2. Answer Key / Rubric</h4>
+                        <div class="upload-dropzone mb-3" id="ak-dropzone">
+                            <i class="fa-solid fa-square-poll-vertical"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag PDF / Image here</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="ak-file" name="answer_key_file" accept=".pdf,image/*">
+                            <div class="mt-2 text-primary small text-truncate" id="ak-file-label">No file selected</div>
+                        </div>
+                        
+                        <div class="accordion accordion-custom" id="akPasteAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed py-2 small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#ak-paste-collapse">
+                                        <i class="fa-solid fa-keyboard me-2 text-secondary"></i>Or Paste Plain Text
+                                    </button>
+                                </h2>
+                                <div id="ak-paste-collapse" class="accordion-collapse collapse" data-bs-parent="#akPasteAccordion">
+                                    <div class="accordion-body p-2">
+                                        <textarea class="form-control glass-input" id="ak-text" name="answer_key_text" rows="4" placeholder="Paste model answers / key criteria here..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Answer Sheets Bulk Mode -->
+            <div class="glass-card p-4 mb-4">
+                <h3 class="h5 mb-4 text-primary"><i class="fa-solid fa-users-rectangle me-2"></i>3. Upload Student Answer Sheets</h3>
+                
+                <div class="row g-4">
+                    <!-- Zip File Upload -->
+                    <div class="col-md-6 border-end border-secondary">
+                        <h5 class="h6 text-light fw-bold mb-3">Option A: Upload a ZIP Folder</h5>
+                        <div class="upload-dropzone p-4" id="zip-dropzone">
+                            <i class="fa-solid fa-file-archive text-warning"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag ZIP file here</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="zip-file" name="student_sheets_zip" accept=".zip">
+                            <div class="mt-2 text-primary small text-truncate" id="zip-file-label">No file selected</div>
+                        </div>
+                    </div>
+
+                    <!-- Multi-file Upload -->
+                    <div class="col-md-6">
+                        <h5 class="h6 text-light fw-bold mb-3">Option B: Select Multiple Files</h5>
+                        <div class="upload-dropzone p-4" id="multi-dropzone">
+                            <i class="fa-solid fa-files text-info"></i>
+                            <p class="mb-1 text-light small fw-bold">Drag multiple PDFs / Images</p>
+                            <span class="text-secondary small">or click to browse</span>
+                            <input type="file" class="d-none" id="multi-file" name="student_sheets_files" accept=".pdf,image/*" multiple>
+                            <div class="mt-2 text-primary small text-truncate" id="multi-file-label">No files selected</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-secondary small mt-4">
+                    <i class="fa-solid fa-circle-info me-1"></i>Filename naming convention: <strong>Name_RollNo.pdf</strong> (e.g., <code>Ramesh_101.pdf</code>). Any filenames not matching this pattern will be labeled as "Unknown" and can be renamed manually.
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center my-5">
+                <button type="submit" class="btn btn-gradient btn-lg px-5 py-3">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Start Bulk Evaluation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Progress/Loading Modal replaced by EvalIQSplash -->
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // ----------------------------------------------------
+    // 1. Dropzones Setup
+    // ----------------------------------------------------
+    const setupDropzone = (zoneId, inputId, labelId) => {
+        const dropzone = document.getElementById(zoneId);
+        const input = document.getElementById(inputId);
+        const label = document.getElementById(labelId);
+        
+        if (!dropzone || !input) return;
+
+        dropzone.addEventListener('click', () => input.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                input.files = e.dataTransfer.files;
+                updateFileName(input, label);
+            }
+        });
+
+        input.addEventListener('change', () => {
+            updateFileName(input, label);
+        });
+    };
+
+    const updateFileName = (input, label) => {
+        if (input.files && input.files.length > 0) {
+            if (input.files.length === 1) {
+                label.innerHTML = `<strong>Selected file:</strong> ${input.files[0].name}`;
+            } else {
+                label.innerHTML = `<strong>Selected:</strong> ${input.files.length} files`;
+            }
+        }
+    };
+
+    setupDropzone('qp-dropzone', 'qp-file', 'qp-file-label');
+    setupDropzone('ak-dropzone', 'ak-file', 'ak-file-label');
+    setupDropzone('zip-dropzone', 'zip-file', 'zip-file-label');
+    setupDropzone('multi-dropzone', 'multi-file', 'multi-file-label');
+
+    // ----------------------------------------------------
+    // 2. Form submission and polling logic
+    // ----------------------------------------------------
+    const uploadForm = document.getElementById('bulk-upload-form');
+    let pollingInterval = null;
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(uploadForm);
+        
+        // Basic validation
+        const qpFile = document.getElementById('qp-file').files[0];
+        const qpText = document.getElementById('qp-text').value.trim();
+        const akFile = document.getElementById('ak-file').files[0];
+        const akText = document.getElementById('ak-text').value.trim();
+        const zipFile = document.getElementById('zip-file').files[0];
+        const multiFiles = document.getElementById('multi-file').files;
+
+        if (!qpFile && !qpText) {
+            alert('Please upload a Question Paper file or paste its text.');
+            return;
+        }
+        if (!akFile && !akText) {
+            alert('Please upload an Answer Key file or paste its text.');
+            return;
+        }
+        if (!zipFile && multiFiles.length === 0) {
+            alert('Please upload a ZIP file OR select multiple student answer sheets.');
+            return;
+        }
+
+        // Show EvalIQ splash screen overlay as processing screen
+        window.EvalIQSplash.show("Initializing Exam Rubrics Extraction...", false);
+
+        try {
+            const response = await fetch('/bulk-upload-ajax', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.status === 'success') {
+                const sessionId = result.session_id;
+                
+                // Begin polling progress status
+                startPolling(sessionId);
+            } else {
+                window.EvalIQSplash.hide();
+                alert(result.message || 'Initialization failed.');
+            }
+        } catch (err) {
+            window.EvalIQSplash.hide();
+            console.error(err);
+            alert('An error occurred during communication with the server.');
+        }
+    });
+
+    function startPolling(sessionId) {
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/bulk-status/${sessionId}`);
+                if (!response.ok) return;
+
+                const job = await response.json();
+                
+                // Calculate percentage
+                const percentage = job.total > 0 ? Math.round((job.current / job.total) * 100) : 0;
+                
+                if (job.status === 'running') {
+                    const statusText = `Evaluating student: ${job.current_student || 'Unknown'} (${job.current} of ${job.total})`;
+                    window.EvalIQSplash.showBulkProgress(statusText, percentage);
+                } 
+                else if (job.status === 'completed') {
+                    clearInterval(pollingInterval);
+                    window.EvalIQSplash.showBulkProgress(`Successfully evaluated all student sheets! Redirecting...`, 100);
+                    
+                    setTimeout(() => {
+                        window.EvalIQSplash.hide();
+                        window.location.href = `/bulk-results/${job.bulk_id}`;
+                    }, 1500);
+                } 
+                else if (job.status === 'failed') {
+                    clearInterval(pollingInterval);
+                    window.EvalIQSplash.hide();
+                    alert(job.global_error || "An error occurred during bulk evaluation.");
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 2000); // Poll every 2 seconds
+    }
+
+    // Pass/Fail configuration validation/updates
+    const totalMarksInput = document.getElementById("total_marks");
+    const passMarksInput = document.getElementById("pass_marks");
+    const passPercentageInput = document.getElementById("pass_percentage");
+    const usePercentageSwitch = document.getElementById("use_percentage_switch");
+    const passMarksWrapper = document.getElementById("pass_marks_wrapper");
+    const passPercentageWrapper = document.getElementById("pass_percentage_wrapper");
+    const passHelpText = document.getElementById("pass_help_text");
+    const validationFeedback = document.getElementById("validation_feedback");
+    const calculationDisplay = document.getElementById("calculation_display");
+    const calculatedPassMarksVal = document.getElementById("calculated_pass_marks_val");
+    const submitBtn = document.querySelector("#bulk-upload-form button[type='submit']");
+    
+    function updateCalculationsAndValidate() {
+        const totalMarks = parseFloat(totalMarksInput.value) || 0.0;
+        let passMarks = parseFloat(passMarksInput.value) || 0.0;
+        const isPercentage = usePercentageSwitch.checked;
+        
+        if (isPercentage) {
+            passPercentageWrapper.style.display = "block";
+            passMarksWrapper.style.display = "none";
+            passHelpText.textContent = "Enter pass percentage of total marks.";
+            
+            const pct = parseFloat(passPercentageInput.value) || 0.0;
+            if (totalMarks > 0) {
+                calculationDisplay.style.display = "block";
+                passMarks = (pct / 100.0) * totalMarks;
+                passMarks = Math.round(passMarks * 100) / 100;
+                calculatedPassMarksVal.textContent = passMarks.toFixed(2);
+                passMarksInput.value = passMarks;
+            } else {
+                // If total marks is blank (will be derived from QP)
+                calculationDisplay.style.display = "block";
+                calculatedPassMarksVal.textContent = `${pct}% of QP sum`;
+                // Keep passMarks empty so we don't override with incorrect values
+                passMarksInput.value = "";
+            }
+        } else {
+            passPercentageWrapper.style.display = "none";
+            passMarksWrapper.style.display = "block";
+            passHelpText.textContent = "Enter direct minimum pass marks required.";
+            calculationDisplay.style.display = "none";
+            
+            passMarks = parseFloat(passMarksInput.value) || 0.0;
+        }
+        
+        // Validation: passMarks <= totalMarks (only if totalMarks is specified)
+        if (totalMarks > 0 && passMarks > totalMarks) {
+            validationFeedback.style.display = "block";
+            submitBtn.disabled = true;
+        } else if (isPercentage && parseFloat(passPercentageInput.value) > 100) {
+            validationFeedback.style.display = "block";
+            submitBtn.disabled = true;
+        } else {
+            validationFeedback.style.display = "none";
+            submitBtn.disabled = false;
+        }
+    }
+    
+    usePercentageSwitch.addEventListener("change", updateCalculationsAndValidate);
+    totalMarksInput.addEventListener("input", updateCalculationsAndValidate);
+    passMarksInput.addEventListener("input", updateCalculationsAndValidate);
+    passPercentageInput.addEventListener("input", updateCalculationsAndValidate);
+    
+    // Run initially
+    updateCalculationsAndValidate();
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Verify Extraction - AI Answer Sheet Evaluator{% endblock %}
+{% block title %}Verify Extraction - EvalIQ{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -38,6 +38,168 @@
         <!-- Form for verification & submission -->
         <form action="{{ url_for('evaluate') }}" method="POST" id="preview-form">
             <input type="hidden" name="session_id" value="{{ session_id }}">
+            
+            <!-- Pass/Fail Configuration Card -->
+            <div class="glass-card p-4 mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-primary me-2"><i class="fa-solid fa-gears"></i></span>
+                    <h3 class="h5 text-light display-font mb-0">Pass/Fail Configuration</h3>
+                </div>
+                
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label text-secondary small fw-bold">Total Marks</label>
+                        <input type="number" step="0.5" min="0" class="form-control glass-input" id="total_marks" name="total_marks" required>
+                        <div class="form-text text-secondary small">Calculated from the sum of all question max marks. Can be overridden.</div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-secondary small fw-bold mb-0">Pass Criterion</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="use_percentage_switch">
+                                <label class="form-check-label text-secondary small" for="use_percentage_switch">Use %</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Direct Pass Marks Input -->
+                        <div id="pass_marks_wrapper">
+                            <input type="number" step="0.5" min="0" class="form-control glass-input" id="pass_marks" name="pass_marks" required>
+                        </div>
+                        
+                        <!-- Pass Percentage Input (Hidden by default) -->
+                        <div id="pass_percentage_wrapper" style="display: none;">
+                            <div class="input-group">
+                                <input type="number" step="1" min="0" max="100" class="form-control glass-input" id="pass_percentage" value="40" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                <span class="input-group-text text-light" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-left: none; border-top-right-radius: var(--bs-border-radius); border-bottom-right-radius: var(--bs-border-radius);">%</span>
+                            </div>
+                        </div>
+                        <div class="form-text text-secondary small" id="pass_help_text">Enter direct minimum pass marks required.</div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <!-- Validation/Calculation Display -->
+                        <div id="validation_feedback" class="alert alert-danger py-2 px-3 mb-0 small border-0" style="display: none; background: rgba(239, 68, 68, 0.1);">
+                            <i class="fa-solid fa-circle-exclamation me-1 text-danger"></i> Pass marks cannot exceed total marks!
+                        </div>
+                        <div id="calculation_display" class="alert alert-info py-2 px-3 mb-0 small border-0 text-info" style="display: none; background: rgba(59, 130, 246, 0.1);">
+                            <i class="fa-solid fa-circle-info me-1"></i> Calc. Pass Marks: <strong id="calculated_pass_marks_val">0.0</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const totalMarksInput = document.getElementById("total_marks");
+                const passMarksInput = document.getElementById("pass_marks");
+                const passPercentageInput = document.getElementById("pass_percentage");
+                const usePercentageSwitch = document.getElementById("use_percentage_switch");
+                const passMarksWrapper = document.getElementById("pass_marks_wrapper");
+                const passPercentageWrapper = document.getElementById("pass_percentage_wrapper");
+                const passHelpText = document.getElementById("pass_help_text");
+                const validationFeedback = document.getElementById("validation_feedback");
+                const calculationDisplay = document.getElementById("calculation_display");
+                const calculatedPassMarksVal = document.getElementById("calculated_pass_marks_val");
+                const submitBtn = document.querySelector("#preview-form button[type='submit']");
+                
+                // Find all max marks inputs
+                const maxMarksInputs = document.querySelectorAll("input[name^='max_marks_']");
+                
+                function calculateTotalMarks() {
+                    let total = 0.0;
+                    maxMarksInputs.forEach(input => {
+                        const val = parseFloat(input.value);
+                        if (!isNaN(val)) {
+                            total += val;
+                        }
+                    });
+                    return total;
+                }
+                
+                // Initial population of Total Marks
+                const calculatedTotal = calculateTotalMarks();
+                totalMarksInput.value = calculatedTotal;
+                
+                // Listen to changes on question max marks to update total marks
+                maxMarksInputs.forEach(input => {
+                    input.addEventListener("input", function() {
+                        totalMarksInput.value = calculateTotalMarks();
+                        updateCalculationsAndValidate();
+                    });
+                });
+                
+                function updateCalculationsAndValidate() {
+                    const totalMarks = parseFloat(totalMarksInput.value) || 0.0;
+                    let passMarks = 0.0;
+                    const isPercentage = usePercentageSwitch.checked;
+                    
+                    if (isPercentage) {
+                        passPercentageWrapper.style.display = "block";
+                        passMarksWrapper.style.display = "none";
+                        passHelpText.textContent = "Enter pass percentage of total marks.";
+                        calculationDisplay.style.display = "block";
+                        
+                        const pct = parseFloat(passPercentageInput.value) || 0.0;
+                        passMarks = (pct / 100.0) * totalMarks;
+                        passMarks = Math.round(passMarks * 100) / 100;
+                        calculatedPassMarksVal.textContent = passMarks.toFixed(2);
+                        passMarksInput.value = passMarks;
+                    } else {
+                        passPercentageWrapper.style.display = "none";
+                        passMarksWrapper.style.display = "block";
+                        passHelpText.textContent = "Enter direct minimum pass marks required.";
+                        calculationDisplay.style.display = "none";
+                        
+                        passMarks = parseFloat(passMarksInput.value) || 0.0;
+                    }
+                    
+                    // Validation: passMarks <= totalMarks
+                    if (passMarks > totalMarks || (isPercentage && parseFloat(passPercentageInput.value) > 100)) {
+                        validationFeedback.style.display = "block";
+                        submitBtn.disabled = true;
+                    } else {
+                        validationFeedback.style.display = "none";
+                        submitBtn.disabled = false;
+                    }
+                }
+                
+                // Event listeners
+                usePercentageSwitch.addEventListener("change", updateCalculationsAndValidate);
+                totalMarksInput.addEventListener("input", updateCalculationsAndValidate);
+                passMarksInput.addEventListener("input", updateCalculationsAndValidate);
+                passPercentageInput.addEventListener("input", updateCalculationsAndValidate);
+                
+                // Form submit loading splash handling
+                const previewForm = document.getElementById("preview-form");
+                if (previewForm) {
+                    previewForm.addEventListener("submit", function() {
+                        if (window.EvalIQSplash) {
+                            window.EvalIQSplash.show("Reading handwritten answers...", false);
+                            
+                            const evalSteps = [
+                                "Evaluating responses...",
+                                "Calculating final scores...",
+                                "Finalizing evaluation report...",
+                                "Rendering results dashboard..."
+                            ];
+                            let stepIdx = 0;
+                            const stepTimer = setInterval(() => {
+                                if (stepIdx < evalSteps.length) {
+                                    window.EvalIQSplash.updateStatus(evalSteps[stepIdx]);
+                                    stepIdx++;
+                                } else {
+                                    clearInterval(stepTimer);
+                                }
+                            }, 3500);
+                        }
+                    });
+                }
+                
+                // Initial validation run
+                updateCalculationsAndValidate();
+            });
+            </script>
             
             {% for q in questions %}
             <div class="glass-card p-4 mb-4">
